@@ -1,25 +1,68 @@
-import React from 'react';
-import { Text, StyleSheet, View, SafeAreaView, TouchableOpacity, Dimensions, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Text, StyleSheet, View, SafeAreaView, TouchableOpacity, Dimensions, Image, FlatList, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
+import songs from '../modal/data';
 
 const { width, height } = Dimensions.get('window');
 
 const MusicPlayer = () => {
+
+    const [songIndex, setSongIndex] = useState(0);
+
+    const scrollX = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        scrollX.addListener(({ value }) => {
+            //console.log(`ScrollX : ${value} | Device Width : ${width} `);
+            const index = Math.round(value / width);
+            setSongIndex(index);
+            //  console.log(index);
+
+        });
+    }, []);
+
+    const renderSongs = ({ item, index }) => {
+        return (
+            <Animated.View style={styles.mainImageWrapper}>
+                <View style={[styles.imageWrapper, styles.elevation]} >
+                    <Image
+                        source={item.artwork}
+                        style={styles.musicImage}
+                    />
+                </View>
+            </Animated.View>
+        )
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.mainContainer}>
                 {/* image */}
-                <View style={[styles.imageWrapper, styles.elevation]}>
-                    <Image
-                        source={require('../assets/img/img1.jpg')}
-                        style={styles.musicImage} />
-                </View>
+                <Animated.FlatList
+                    renderItem={renderSongs}
+                    data={songs}
+                    keyExtractor={item => item.id}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    scrollEventThrottle={16}
+                    onScroll={Animated.event(
+                        [
+                            {
+                                nativeEvent: {
+                                    contentOffset: { x: scrollX },
+                                },
+                            },
+                        ],
+                        { useNativeDriver: true },
+                    )}
+                />
 
                 {/* Song content */}
                 <View>
-                    <Text style={[styles.songTitle, styles.songContent]}>Some Title</Text>
-                    <Text style={[styles.songArtist, styles.songContent]}>Some Artist Name</Text>
+                    <Text style={[styles.songTitle, styles.songContent]}>{songs[songIndex].title}</Text>
+                    <Text style={[styles.songArtist, styles.songContent]}>{songs[songIndex].artist}</Text>
                 </View>
 
                 {/* slider */}
@@ -104,6 +147,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         width: '80%'
     },
+    mainImageWrapper: {
+        width: width,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
     imageWrapper: {
         width: 300,
         height: 340,
@@ -158,5 +206,5 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         width: '60%',
         marginTop: 15
-    }
+    },
 })
