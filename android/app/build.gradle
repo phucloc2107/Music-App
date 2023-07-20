@@ -131,14 +131,18 @@ def reactNativeArchitectures() {
 }
 
 android {
-    ndkVersion rootProject.ext.ndkVersion
 
-    compileSdkVersion rootProject.ext.compileSdkVersion
+ packagingOptions {
+        pickFirst '**/libc++_shared.so'
+        pickFirst '**/libfbjni.so'
+    }
 
     defaultConfig {
         applicationId "com.musicapp"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        ndkVersion= "21.4.7075529"
+        minSdkVersion =21
+        compileSdkVersion 33
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
         buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
@@ -151,7 +155,7 @@ android {
                         "APP_STL=c++_shared",
                         "NDK_TOOLCHAIN_VERSION=clang",
                         "GENERATED_SRC_DIR=$buildDir/generated/source",
-                        "PROJECT_BUILD_DIR=$buildDir",
+                        "PROJECT_BUILD_DIR=$buildDir",  
                         "REACT_ANDROID_DIR=$rootDir/../node_modules/react-native/ReactAndroid",
                         "REACT_ANDROID_BUILD_DIR=$rootDir/../node_modules/react-native/ReactAndroid/build"
                     cFlags "-Wall", "-Werror", "-fexceptions", "-frtti", "-DWITH_INSPECTOR=1"
@@ -264,7 +268,7 @@ dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
 
     //noinspection GradleDynamicVersion
-    implementation "com.facebook.react:react-native:+"  // From node_modules
+    implementation "com.facebook.react:react-native:0.68.2"  // From node_modules
 
     implementation project(':react-native-vector-icons')
 

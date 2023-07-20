@@ -3,24 +3,62 @@ import { Text, StyleSheet, View, SafeAreaView, TouchableOpacity, Dimensions, Ima
 import Icon from 'react-native-vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import songs from '../modal/data';
+import TrackPlayer, { Capability, Event, RepeatMode, State, usePlaybackState, useProgress, useTrackPlayerEvents } from 'react-native-track-player';
+
 
 const { width, height } = Dimensions.get('window');
 
-const MusicPlayer = () => {
+const setupPlayer = async () => {
+    try {
+        await TrackPlayer.setupPlayer();
+        await TrackPlayer.add(songs);
+    } catch (e) {
+        console.log(e)
+    }
+};
 
+const togglePlayBack = async playBackState => {
+    const currentTrack = await TrackPlayer.getCurrentTrack();
+    console.log(currentTrack, playBackState, State.Playing);
+    if (currentTrack != null) {
+        if (playBackState == State.Paused) {
+            await TrackPlayer.play();
+        } else {
+            await TrackPlayer.pause();
+        }
+    }
+};
+
+const MusicPlayer = () => {
+    const playBackState = usePlaybackState();
     const [songIndex, setSongIndex] = useState(0);
 
+    // custom reference
     const scrollX = useRef(new Animated.Value(0)).current;
+    const songSlider = useRef(null); // Flatlist reference
 
     useEffect(() => {
+        setupPlayer();
+
         scrollX.addListener(({ value }) => {
             //console.log(`ScrollX : ${value} | Device Width : ${width} `);
             const index = Math.round(value / width);
             setSongIndex(index);
             //  console.log(index);
-
         });
     }, []);
+
+    const skipToNext = () => {
+        songSlider.current.scrollToOffset({
+            offset: (songIndex + 1) * width,
+        });
+    };
+
+    const skipToPrevious = () => {
+        songSlider.current.scrollToOffset({
+            offset: (songIndex - 1) * width,
+        });
+    };
 
     const renderSongs = ({ item, index }) => {
         return (
@@ -35,11 +73,13 @@ const MusicPlayer = () => {
         )
     }
 
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.mainContainer}>
                 {/* image */}
                 <Animated.FlatList
+                    ref={songSlider}
                     renderItem={renderSongs}
                     data={songs}
                     keyExtractor={item => item.id}
@@ -86,15 +126,17 @@ const MusicPlayer = () => {
 
                 {/* music controls */}
                 <View style={styles.musicControlsContainer}>
-                    <TouchableOpacity onPress={() => { }}>
+                    <TouchableOpacity onPress={skipToPrevious}>
                         <Icon name='play-skip-back-outline' size={35} color='#FFD369' />
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => { }}>
-                        <Icon name='pause-circle' size={75} color='#FFD369' />
+                    <TouchableOpacity onPress={() => togglePlayBack(playBackState)}>
+                        <Icon
+                            name={playBackState === State.Playing ? 'pause-circle' : 'play-circle'}
+                            size={75} color='#FFD369' />
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => { }}>
+                    <TouchableOpacity onPress={skipToNext}>
                         <Icon name='play-skip-forward-outline' size={35} color='#FFD369' />
                     </TouchableOpacity>
                 </View>
