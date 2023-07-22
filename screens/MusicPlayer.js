@@ -4,13 +4,22 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import songs from '../modal/data';
 import TrackPlayer, { Capability, Event, RepeatMode, State, usePlaybackState, useProgress, useTrackPlayerEvents } from 'react-native-track-player';
-
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width, height } = Dimensions.get('window');
 
 const setupPlayer = async () => {
     try {
         await TrackPlayer.setupPlayer();
+        await TrackPlayer.updateOptions({
+            capabilities: [
+                Capability.Play,
+                Capability.Pause,
+                Capability.SkipToNext,
+                Capability.SkipToPrevious,
+                Capability.Stop,
+            ],
+        });
         await TrackPlayer.add(songs);
     } catch (e) {
         console.log(e)
@@ -31,11 +40,63 @@ const togglePlayBack = async playBackState => {
 
 const MusicPlayer = () => {
     const playBackState = usePlaybackState();
+    const progress = useProgress();
     const [songIndex, setSongIndex] = useState(0);
+    const [tracktitle, setTrackTitle] = useState();
+    const [trackArtist, setTrackArtist] = useState();
+    const [trackArtWork, setTrackArtWork] = useState();
+
+    const [repeatMode, setRepeatMode] = useState('off');
 
     // custom reference
     const scrollX = useRef(new Animated.Value(0)).current;
     const songSlider = useRef(null); // Flatlist reference
+
+    // Changing the track
+    useTrackPlayerEvents([Event.PlaybackTrackChanged], async event => {
+        if (event.type === Event.PlaybackTrackChanged && event.nextTrack !== null) {
+            const track = await TrackPlayer.getTrack(event.nextTrack);
+            const { title, artist, artwork } = track;
+            setTrackTitle(title);
+            setTrackArtist(artist);
+            setTrackArtWork(artwork);
+        }
+    });
+
+    const repeatIcon = () => {
+        if (repeatMode == 'off') {
+            return 'repeat-off';
+        }
+
+        if (repeatMode == 'track') {
+            return 'repeat-once';
+        }
+
+        if (repeatMode == 'repeat') {
+            return 'repeat';
+        }
+    };
+
+    const changeRepeatMode = () => {
+        if (repeatMode == 'off') {
+            TrackPlayer.setRepeatMode(RepeatMode.Track);
+            setRepeatMode('track');
+        }
+
+        if (repeatMode == 'track') {
+            TrackPlayer.setRepeatMode(RepeatMode.Queue);
+            setRepeatMode('repeat');
+        }
+
+        if (repeatMode == 'repeat') {
+            TrackPlayer.setRepeatMode(RepeatMode.Off);
+            setRepeatMode('off');
+        }
+    };
+
+    const skipTo = async trackId => {
+        await TrackPlayer.skip(trackId);
+    };
 
     useEffect(() => {
         setupPlayer();
@@ -43,9 +104,15 @@ const MusicPlayer = () => {
         scrollX.addListener(({ value }) => {
             //console.log(`ScrollX : ${value} | Device Width : ${width} `);
             const index = Math.round(value / width);
+            skipTo(index);
             setSongIndex(index);
             //  console.log(index);
         });
+
+        return () => {
+            scrollX.removeAllListeners();
+            TrackPlayer.destroy();
+        };
     }, []);
 
     const skipToNext = () => {
@@ -65,7 +132,7 @@ const MusicPlayer = () => {
             <Animated.View style={styles.mainImageWrapper}>
                 <View style={[styles.imageWrapper, styles.elevation]} >
                     <Image
-                        source={item.artwork}
+                        source={trackArtWork}
                         style={styles.musicImage}
                     />
                 </View>
@@ -101,26 +168,33 @@ const MusicPlayer = () => {
 
                 {/* Song content */}
                 <View>
-                    <Text style={[styles.songTitle, styles.songContent]}>{songs[songIndex].title}</Text>
-                    <Text style={[styles.songArtist, styles.songContent]}>{songs[songIndex].artist}</Text>
+                    <Text style={[styles.songTitle, styles.songContent]}>{tracktitle}</Text>
+                    <Text style={[styles.songArtist, styles.songContent]}>{trackArtist}</Text>
                 </View>
 
                 {/* slider */}
                 <View>
                     <Slider
                         style={styles.progressBar}
-                        value={10}
+                        value={progress.position}
                         minimumValue={0}
-                        maximumValue={100}
+                        maximumValue={progress.duration}
                         thumbTintColor='#FFD369'
                         minimumTrackTintColor='#FFD369'
                         maximumTrackTintColor='#FFF'
-                        onSlidingComplete={() => { }}
+                        onSlidingComplete={async value => {
+                            await TrackPlayer.seekTo(value);
+                        }}
                     />
                     {/* Music progress durations */}
                     <View style={styles.progressLevelDuration}>
-                        <Text style={styles.progressLabelText}>00:00</Text>
-                        <Text style={styles.progressLabelText}>00:00</Text>
+                        <Text style={styles.progressLabelText}>
+                            {new Date(progress.position * 1000).toLocaleTimeString().substring(3)}
+                        </Text>
+
+                        <Text style={styles.progressLabelText}>
+                            {new Date((progress.duration - progress.position) * 1000).toLocaleTimeString().substring(3)}
+                        </Text>
                     </View>
                 </View>
 
@@ -148,8 +222,13 @@ const MusicPlayer = () => {
                         <Icon name='heart-outline' size={30} color='#888888' />
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => { }}>
-                        <Icon name='repeat' size={30} color='#888888' />
+                    <TouchableOpacity onPress={changeRepeatMode}>
+                        <MaterialCommunityIcons
+                            name={`${repeatIcon()}`}
+                            size={30}
+                            color={RepeatMode !== 'off' ? '#FFD369' : '#888888'}
+
+                        />
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={() => { }}>
